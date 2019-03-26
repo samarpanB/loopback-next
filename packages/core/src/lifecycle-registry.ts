@@ -37,28 +37,30 @@ export type LifeCycleObserverOptions = {
   parallel?: boolean;
 };
 
+export const DEFAULT_GROUPS_BY_ORDER = ['server'];
+
 /**
  * A context-based registry for life cycle observers
  */
 export class LifeCycleObserverRegistry implements LifeCycleObserver {
   constructor(
     @inject.view(lifeCycleObserverFilter)
-    protected observersView: ContextView<LifeCycleObserver>,
+    protected readonly observersView: ContextView<LifeCycleObserver>,
     @inject(CoreBindings.LIFE_CYCLE_OBSERVER_OPTIONS, {optional: true})
-    protected options: LifeCycleObserverOptions = {
+    protected readonly options: LifeCycleObserverOptions = {
       parallel: true,
-      groupsByOrder: ['server'],
+      groupsByOrder: DEFAULT_GROUPS_BY_ORDER,
     },
   ) {}
 
   setGroupsByOrder(groups: string[]) {
-    this.options.groupsByOrder = groups || ['server'];
+    this.options.groupsByOrder = groups;
   }
 
   /**
    * Get observer groups ordered by the group
    */
-  protected getObserverGroupsByOrder(): LifeCycleObserverGroup[] {
+  public getObserverGroupsByOrder(): LifeCycleObserverGroup[] {
     const bindings = this.observersView.bindings;
     const groups = this.sortObserverBindingsByGroup(bindings);
     if (debug.enabled) {

@@ -10,17 +10,20 @@ import {
   createBindingFromClass,
 } from '@loopback/context';
 import {expect} from '@loopback/testlab';
+import {promisify} from 'util';
 import {
-  asLifeCycleObserverBinding,
+  asLifeCycleObserver,
   CoreBindings,
   CoreTags,
   LifeCycleObserver,
   LifeCycleObserverRegistry,
 } from '../..';
+import {DEFAULT_GROUPS_BY_ORDER} from '../../lifecycle-registry';
+const sleep = promisify(setTimeout);
 
 describe('LifeCycleRegistry', () => {
   let context: Context;
-  let registry: LifeCycleObserverRegistry;
+  let registry: TestObserverRegistry;
   const events: string[] = [];
 
   beforeEach(() => events.splice(0, events.length));
@@ -34,9 +37,25 @@ describe('LifeCycleRegistry', () => {
     expect(events).to.eql(['1-start', '2-start']);
   });
 
+  it('starts all registered async observers', async () => {
+    givenAsyncObserver('1', 'g1');
+    givenAsyncObserver('2', 'g2');
+    registry.setGroupsByOrder(['g1', 'g2']);
+    await registry.start();
+    expect(events).to.eql(['1-start', '2-start']);
+  });
+
   it('stops all registered observers in reverse order', async () => {
     givenObserver('1');
     givenObserver('2');
+    await registry.stop();
+    expect(events).to.eql(['2-stop', '1-stop']);
+  });
+
+  it('stops all registered async observers in reverse order', async () => {
+    givenAsyncObserver('1', 'g1');
+    givenAsyncObserver('2', 'g2');
+    registry.setGroupsByOrder(['g1', 'g2']);
     await registry.stop();
     expect(events).to.eql(['2-stop', '1-stop']);
   });
@@ -46,6 +65,8 @@ describe('LifeCycleRegistry', () => {
     givenObserver('2', 'g2');
     givenObserver('3', 'g1');
     registry.setGroupsByOrder(['g1', 'g2']);
+    const groups = registry.getGroupsByOrder();
+    expect(groups).to.eql(['g1', 'g2']);
     await registry.start();
     expect(events).to.eql(['1-start', '3-start', '2-start']);
   });
@@ -59,24 +80,88 @@ describe('LifeCycleRegistry', () => {
     expect(events).to.eql(['2-stop', '3-stop', '1-stop']);
   });
 
-  it('starts observers by alphabetical group names if no group order is configured', async () => {
+  it('starts observers by alphabetical groups if no order is configured', async () => {
     givenObserver('1', 'g1');
     givenObserver('2', 'g2');
     givenObserver('3', 'g1');
+    givenObserver('4', 'g0');
+    const groups = registry.getGroupsByOrder();
+    expect(groups).to.eql(['g0', 'g1', 'g2']);
     await registry.start();
-    expect(events).to.eql(['1-start', '3-start', '2-start']);
+    expect(events).to.eql(['4-start', '1-start', '3-start', '2-start']);
+  });
+
+  it('runs all registered observers within the same group in parallel', async () => {
+    // 1st group: g1-1 takes 20 ms more than g1-2 to finish
+    givenAsyncObserver('g1-1', 'g1', 20);
+    givenAsyncObserver('g1-2', 'g1', 0);
+
+    // 2nd group: g2-1 takes 20 ms more than g2-2 to finish
+    givenAsyncObserver('g2-1', 'g2', 20);
+    givenAsyncObserver('g2-2', 'g2', 0);
+
+    registry.setGroupsByOrder(['g1', 'g2']);
+    registry.setParallel(true);
+    await registry.start();
+    expect(events.length).to.equal(4);
+    expect(events).to.eql([
+      'g1-2-start',
+      'g1-1-start',
+      'g2-2-start',
+      'g2-1-start',
+    ]);
+  });
+
+  it('runs all registered observers within the same group in serial', async () => {
+    // 1st group: g1-1 takes 20 ms more than g1-2 to finish
+    givenAsyncObserver('g1-1', 'g1', 20);
+    givenAsyncObserver('g1-2', 'g1', 0);
+
+    // 2nd group: g2-1 takes 20 ms more than g2-2 to finish
+    givenAsyncObserver('g2-1', 'g2', 20);
+    givenAsyncObserver('g2-2', 'g2', 0);
+
+    registry.setGroupsByOrder(['g1', 'g2']);
+    registry.setParallel(false);
+    await registry.start();
+    expect(events.length).to.equal(4);
+    expect(events).to.eql([
+      'g1-1-start',
+      'g1-2-start',
+      'g2-1-start',
+      'g2-2-start',
+    ]);
   });
 
   function givenContext() {
     context = new Context('app');
   }
 
+  /**
+   * Create a subclass to expose some protected properties/methods for testing
+   */
+  class TestObserverRegistry extends LifeCycleObserverRegistry {
+    getGroupsByOrder(): string[] {
+      return super.getObserverGroupsByOrder().map(g => g.group);
+    }
+
+    setParallel(parallel?: boolean) {
+      this.options.parallel = parallel;
+    }
+  }
+
   async function givenLifeCycleRegistry() {
+    context.bind(CoreBindings.LIFE_CYCLE_OBSERVER_OPTIONS).to({
+      groupsByOrder: DEFAULT_GROUPS_BY_ORDER,
+      parallel: false,
+    });
     context
       .bind(CoreBindings.LIFE_CYCLE_OBSERVER_REGISTRY)
-      .toClass(LifeCycleObserverRegistry)
+      .toClass(TestObserverRegistry)
       .inScope(BindingScope.SINGLETON);
-    registry = await context.get(CoreBindings.LIFE_CYCLE_OBSERVER_REGISTRY);
+    registry = (await context.get(
+      CoreBindings.LIFE_CYCLE_OBSERVER_REGISTRY,
+    )) as TestObserverRegistry;
   }
 
   function givenObserver(name: string, group = '') {
@@ -91,9 +176,29 @@ describe('LifeCycleRegistry', () => {
     }
     const binding = createBindingFromClass(MyObserver, {
       key: `observers.observer-${name}`,
-    }).apply(asLifeCycleObserverBinding);
+    }).apply(asLifeCycleObserver);
     context.add(binding);
 
     return MyObserver;
+  }
+
+  function givenAsyncObserver(name: string, group = '', delayInMs = 0) {
+    @bind({tags: {[CoreTags.LIFE_CYCLE_OBSERVER_GROUP]: group}})
+    class MyAsyncObserver implements LifeCycleObserver {
+      async start() {
+        await sleep(delayInMs);
+        events.push(`${name}-start`);
+      }
+      async stop() {
+        await sleep(delayInMs);
+        events.push(`${name}-stop`);
+      }
+    }
+    const binding = createBindingFromClass(MyAsyncObserver, {
+      key: `observers.observer-${name}`,
+    }).apply(asLifeCycleObserver);
+    context.add(binding);
+
+    return MyAsyncObserver;
   }
 });
