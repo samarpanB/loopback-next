@@ -97,9 +97,8 @@ two-dimension steps to control the order of life cycle actions.
 First of all, we allow each of the life cycle observers to be tagged with a
 group. For example:
 
-- datasource
+- datasource (connect/disconnect)
 
-  - connect/disconnect
   - mongodb
   - mysql
 
