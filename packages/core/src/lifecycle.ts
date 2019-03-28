@@ -3,12 +3,7 @@
 // This file is licensed under the MIT License.
 // License text available at https://opensource.org/licenses/MIT
 
-import {
-  Binding,
-  BindingFilter,
-  Constructor,
-  ValueOrPromise,
-} from '@loopback/context';
+import {Binding, Constructor, ValueOrPromise} from '@loopback/context';
 import {CoreTags} from './keys';
 
 /**
@@ -57,7 +52,8 @@ export function asLifeCycleObserver<T = unknown>(binding: Binding<T>) {
 
 /**
  * Find all life cycle observer bindings. By default, a binding tagged with
- * `CoreTags.LIFE_CYCLE_OBSERVER`
+ * `CoreTags.LIFE_CYCLE_OBSERVER`. It's used as `BindingFilter`.
  */
-export const lifeCycleObserverFilter: BindingFilter = binding =>
-  binding.tagMap[CoreTags.LIFE_CYCLE_OBSERVER] != null;
+export function lifeCycleObserverFilter(binding: Binding<unknown>): boolean {
+  return binding.tagMap[CoreTags.LIFE_CYCLE_OBSERVER] != null;
+}

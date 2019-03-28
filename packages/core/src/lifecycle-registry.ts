@@ -199,7 +199,10 @@ export class LifeCycleObserverRegistry implements LifeCycleObserver {
   ) {
     const observers = await this.observersView.values();
     const bindings = this.observersView.bindings;
-    if (reverse) groups = groups.reverse();
+    if (reverse) {
+      // Do not reverse the original `groups` in place
+      groups = [...groups].reverse();
+    }
     for (const group of groups) {
       const observersForGroup: LifeCycleObserver[] = [];
       const bindingsInGroup = reverse

@@ -89,12 +89,22 @@ describe('Application life cycle', () => {
 
     it('does not attempt to start poorly named bindings', async () => {
       const app = new Application();
-      app.component(FakeComponent);
+      let startInvoked = false;
+      let stopInvoked = false;
 
       // The app.start should not attempt to start this binding.
-      app.bind('controllers.servers').to({});
+      app.bind('controllers.servers').to({
+        start: () => {
+          startInvoked = true;
+        },
+        stop: () => {
+          stopInvoked = true;
+        },
+      });
       await app.start();
+      expect(startInvoked).to.be.false(); // not invoked
       await app.stop();
+      expect(stopInvoked).to.be.false(); // not invoked
     });
   });
 });

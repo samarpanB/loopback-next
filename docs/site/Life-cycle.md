@@ -53,9 +53,8 @@ export interface LifeCycleObserver {
 }
 ```
 
-Please note all methods are optional so that an observer can opt in certain
-events. Each main events such as `start` and `stop` are further divided into
-three sub-phases to allow the multiple-step processing.
+Both `start` and `stop` methods are optional so that an observer can opt in
+certain events.
 
 ## Register a life cycle observer
 
@@ -108,7 +107,6 @@ group. For example:
 
 We can then configure the application to trigger observers group by group as
 configured by an array of groups in order such as `['datasource', 'server']`.
-Observers within the same group can be notified in parallel.
 
 For example,
 
@@ -144,10 +142,27 @@ export class MyObserver {
 app.add(createBindingFromClass(MyObserver));
 ```
 
-The order of observers are controlled by a `groupsByOrder` property of
+The order of observers is controlled by a `groupsByOrder` property of
 `LifeCycleObserverRegistry`, which receives its options including the
-`groupsByOrder` from `CoreBindings.LIFE_CYCLE_OBSERVER_OPTIONS`. Thus the
-initial `groupsByOrder` can be set as follows:
+`groupsByOrder` from `CoreBindings.LIFE_CYCLE_OBSERVER_OPTIONS`.
+
+```ts
+export type LifeCycleObserverOptions = {
+  /**
+   * Control the order of observer groups for notifications. For example,
+   * with `['datasource', 'server']`, the observers in `datasource` group are
+   * notified before those in `server` group during `start`. Please note that
+   * observers are notified in the reverse order during `stop`.
+   */
+  groupsByOrder: string[];
+  /**
+   * Notify observers of the same group in parallel, default to `true`
+   */
+  parallel?: boolean;
+};
+```
+
+Thus the initial `groupsByOrder` can be set as follows:
 
 ```ts
 app
@@ -163,15 +178,15 @@ registry.setGroupsByOrder(['g1', 'g2', 'server']);
 ```
 
 Observers are sorted using `groupsByOrder` as the relative order. If an observer
-is tagged with a group that are not in `groupsByOrder`, it will come before any
-groups within `groupsByOrder`. Such custom groups are also sorted by their names
-alphabetically.
+is tagged with a group that is not defined in `groupsByOrder`, it will come
+before any groups included in `groupsByOrder`. Such custom groups are also
+sorted by their names alphabetically.
 
-In the example below, `groupsByOrder` is set to `['g1', 'g2']`. Given the
-following observers:
+In the example below, `groupsByOrder` is set to
+`['setup-servers', 'publish-services']`. Given the following observers:
 
-- 'my-observer-1' ('g1')
-- 'my-observer-2' ('g2')
+- 'my-observer-1' ('setup-servers')
+- 'my-observer-2' ('publish-services')
 - 'my-observer-4' ('2-custom-group')
 - 'my-observer-3' ('1-custom-group')
 
@@ -179,15 +194,20 @@ The sorted observer groups will be:
 
 ```ts
 {
-  '1-custom-group': ['my-observer-3'],
-  '2-custom-group': ['my-observer-4'],
-  'g1': ['my-observer-1'],
-  'g2': ['my-observer-2'],
+  '1-custom-group': ['my-observer-3'], // by alphabetical order
+  '2-custom-group': ['my-observer-4'], // by alphabetical order
+  'setup-servers': ['my-observer-1'], // by groupsByOrder
+  'publish-services': ['my-observer-2'], // groupsByOrder
 }
 ```
 
-The execution order of observers within the same group is not defined. If you
-want to have one to be invoked before the other, mark them with two groups.
+The execution order of observers within the same group is controlled by
+`LifeCycleObserverOptions.parallel`:
+
+- `true` (default): observers within the same group are notified in parallel
+- `false`: observers within the same group are notified one by one. The order is
+  not defined. If you want to have one to be invoked before the other, mark them
+  with two distinct groups.
 
 ## Add custom life cycle observers by convention
 
