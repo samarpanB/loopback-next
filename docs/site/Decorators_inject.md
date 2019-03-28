@@ -126,7 +126,7 @@ class MyControllerWithGetter {
 
 `@inject.setter` injects a setter function to set the bound value of the key.
 
-Syntax: `@inject.setter(bindingKey: string)`.
+Syntax: `@inject.setter(bindingKey: string, {bindingCreation?: ...})`.
 
 ```ts
 export class HelloController {
@@ -147,14 +147,19 @@ The `setter` function injected has the following signature:
 
 ```ts
 /**
- * Set the binding with one or more `BindingTemplate` functions or values
- * @param templateFnsOrValues
+ * The function injected by `@inject.setter(bindingKey)`.
  */
-(...templateFnsOrValues: (T | BindingTemplate<T>)[]): Binding<T>;
+export interface Setter<T> {
+  /**
+   * Set the underlying binding to a const value. Returns the `Binding` object.
+   * The usages are:
+   *
+   * @param value Optional value. If not provided, the underlying binding won't
+   * be changed and returned as-is.
+   */
+  (value?: T): Binding<T>;
+}
 ```
-
-It takes either a const value or `BindingTemplate` functions to create (if not
-existent) or update the binding. For example:
 
 ```ts
 const binding = this.greetingSetter('Greetings!');
@@ -163,7 +168,39 @@ const binding = this.greetingSetter('Greetings!');
 or
 
 ```ts
-const binding = this.greetingSetter(b => b.toDynamicValue(() => 'Greetings!'));
+const binding = this.greetingSetter().toDynamicValue(() => 'Greetings!');
+```
+
+The `@inject.setter` takes an optional `metadata` object which can contain
+`bindingCreation` to control how underlying binding is resolved or created based
+on the following values:
+
+```ts
+/**
+ * Policy to control if a binding should be created for the context
+ */
+export enum BindingCreationPolicy {
+  /**
+   * Always create a binding with the key for the context
+   */
+  ALWAYS_CREATE = 'Always',
+  /**
+   * Never create a binding for the context. If the key is not bound in the
+   * context, throw an error.
+   */
+  NEVER_CREATE = 'Never',
+  /**
+   * Create a binding if the key is not bound in the context. Otherwise, return
+   * the existing binding.
+   */
+  CREATE_IF_NOT_BOUND = 'IfNotBound',
+}
+```
+
+For example:
+
+```ts
+@inject.setter('binding-key', {bindingCreation: BindingCreationPolicy.NEVER_CREATES})
 ```
 
 ### @inject.tag

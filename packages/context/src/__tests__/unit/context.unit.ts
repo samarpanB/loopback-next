@@ -12,6 +12,7 @@ import {
   Context,
   isPromiseLike,
 } from '../..';
+import {BindingCreationPolicy} from '../../context';
 
 /**
  * Create a subclass of context so that we can access parents and registry
@@ -343,15 +344,75 @@ describe('Context', () => {
   });
 
   describe('findOrCreateBinding', () => {
-    it('returns the binding object registered under the given key', () => {
-      const expected = ctx.bind('foo');
-      const actual: Binding = ctx.findOrCreateBinding('foo');
-      expect(actual).to.be.exactly(expected);
+    describe('bindingCreationPolicy - ALWAYS_CREATE', () => {
+      it('creates a new binding even the key is bound', () => {
+        const current = ctx.bind('foo');
+        const actual: Binding = ctx.findOrCreateBinding(
+          'foo',
+          BindingCreationPolicy.ALWAYS_CREATE,
+        );
+        expect(actual).to.be.not.exactly(current);
+      });
+
+      it('creates a new binding if not bound', () => {
+        const binding = ctx.findOrCreateBinding(
+          'a-new-key',
+          BindingCreationPolicy.ALWAYS_CREATE,
+        );
+        expect(binding.key).to.eql('a-new-key');
+      });
     });
 
-    it('creates a new binding if not found', () => {
-      const binding = ctx.findOrCreateBinding('a-new-key');
-      expect(binding.key).to.eql('a-new-key');
+    describe('bindingCreationPolicy - NEVER_CREATE', () => {
+      it('returns the exiting binding if the key is bound', () => {
+        const current = ctx.bind('foo');
+        const actual: Binding = ctx.findOrCreateBinding(
+          'foo',
+          BindingCreationPolicy.NEVER_CREATE,
+        );
+        expect(actual).to.be.exactly(current);
+      });
+
+      it('throws an error if the key is not bound', () => {
+        expect(() =>
+          ctx.findOrCreateBinding(
+            'a-new-key',
+            BindingCreationPolicy.NEVER_CREATE,
+          ),
+        ).to.throw(/The key 'a-new-key' is not bound to any value in context/);
+      });
+    });
+
+    describe('bindingCreationPolicy - CREATE_IF_NOT_BOUND', () => {
+      it('returns the binding object registered under the given key', () => {
+        const expected = ctx.bind('foo');
+        const actual: Binding = ctx.findOrCreateBinding(
+          'foo',
+          BindingCreationPolicy.CREATE_IF_NOT_BOUND,
+        );
+        expect(actual).to.be.exactly(expected);
+      });
+
+      it('creates a new binding if the key is not bound', () => {
+        const binding = ctx.findOrCreateBinding(
+          'a-new-key',
+          BindingCreationPolicy.CREATE_IF_NOT_BOUND,
+        );
+        expect(binding.key).to.eql('a-new-key');
+      });
+    });
+
+    describe('default bindingCreationPolicy - CREATE_IF_NOT_BOUND', () => {
+      it('returns the binding object registered under the given key', () => {
+        const expected = ctx.bind('foo');
+        const actual: Binding = ctx.findOrCreateBinding('foo');
+        expect(actual).to.be.exactly(expected);
+      });
+
+      it('creates a new binding if the key is not bound', () => {
+        const binding = ctx.findOrCreateBinding('a-new-key');
+        expect(binding.key).to.eql('a-new-key');
+      });
     });
 
     it('rejects a key containing property separator', () => {

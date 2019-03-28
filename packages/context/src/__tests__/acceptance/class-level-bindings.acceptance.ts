@@ -17,6 +17,7 @@ import {
   ResolutionSession,
   Setter,
 } from '../..';
+import {BindingCreationPolicy} from '../../context';
 
 const INFO_CONTROLLER = 'controllers.info';
 
@@ -341,7 +342,7 @@ describe('Context bindings - Injecting dependencies of classes', () => {
       constructor(@inject.setter(HASH_KEY) public setter: Setter<string>) {}
     }
 
-    it('injects a setter function', async () => {
+    it('injects a setter function', () => {
       ctx.bind(STORE_KEY).toClass(Store);
       const store = ctx.getSync<Store>(STORE_KEY);
 
@@ -355,21 +356,11 @@ describe('Context bindings - Injecting dependencies of classes', () => {
       const store = ctx.getSync<Store>(STORE_KEY);
 
       expect(store.setter).to.be.Function();
-      store.setter().to('a-value');
-      expect(ctx.getSync(HASH_KEY)).to.equal('a-value');
+      store.setter().toDynamicValue(() => Promise.resolve('a-value'));
+      expect(await ctx.get(HASH_KEY)).to.equal('a-value');
     });
 
-    it('injects a setter function to apply templates', async () => {
-      ctx.bind(STORE_KEY).toClass(Store);
-      const store = ctx.getSync<Store>(STORE_KEY);
-
-      expect(store.setter).to.be.Function();
-      store.setter(b => b.to('a-value').tag('a-tag'));
-      expect(ctx.getSync(HASH_KEY)).to.equal('a-value');
-      expect(ctx.getBinding(HASH_KEY).tagNames).to.containEql('a-tag');
-    });
-
-    it('injects a setter function that uses an existing binding', async () => {
+    it('injects a setter function that uses an existing binding', () => {
       // Create a binding for hash key
       ctx
         .bind(HASH_KEY)
@@ -384,7 +375,7 @@ describe('Context bindings - Injecting dependencies of classes', () => {
       expect(ctx.getBinding(HASH_KEY).tagNames).to.containEql('hash');
     });
 
-    it('reports an error if @inject.setter has a non-function target', async () => {
+    it('reports an error if @inject.setter has a non-function target', () => {
       class StoreWithWrongSetterType {
         constructor(@inject.setter(HASH_KEY) public setter: object) {}
       }
@@ -395,6 +386,78 @@ describe('Context bindings - Injecting dependencies of classes', () => {
       expect(() => ctx.getSync<Store>(STORE_KEY)).to.throw(
         'The type of StoreWithWrongSetterType.constructor[0] (Object) is not a Setter function',
       );
+    });
+
+    describe('bindingCreation option', () => {
+      it('supports ALWAYS_CREATE', () => {
+        ctx
+          .bind(STORE_KEY)
+          .toClass(givenStoreClass(BindingCreationPolicy.ALWAYS_CREATE));
+        const store = ctx.getSync<Store>(STORE_KEY);
+        const binding1 = store.setter('a-value');
+        const binding2 = store.setter('b-value');
+        expect(binding1).to.not.exactly(binding2);
+      });
+
+      it('supports NEVER_CREATE - throws if not bound', () => {
+        ctx
+          .bind(STORE_KEY)
+          .toClass(givenStoreClass(BindingCreationPolicy.NEVER_CREATE));
+        const store = ctx.getSync<Store>(STORE_KEY);
+        expect(() => store.setter('a-value')).to.throw(
+          /The key 'hash' is not bound to any value in context/,
+        );
+      });
+
+      it('supports NEVER_CREATE with an existing binding', () => {
+        // Create a binding for hash key
+        const hashBinding = ctx
+          .bind(HASH_KEY)
+          .to('123')
+          .tag('hash');
+        ctx
+          .bind(STORE_KEY)
+          .toClass(givenStoreClass(BindingCreationPolicy.NEVER_CREATE));
+        const store = ctx.getSync<Store>(STORE_KEY);
+        const binding = store.setter('a-value');
+        expect(binding).to.exactly(hashBinding);
+        expect(ctx.getSync(HASH_KEY)).to.equal('a-value');
+      });
+
+      it('supports CREATE_IF_NOT_BOUND without an existing binding', async () => {
+        ctx
+          .bind(STORE_KEY)
+          .toClass(givenStoreClass(BindingCreationPolicy.CREATE_IF_NOT_BOUND));
+        const store = ctx.getSync<Store>(STORE_KEY);
+        const binding = store.setter('a-value');
+        expect(binding.key).to.eql(HASH_KEY.toString());
+        expect(ctx.getSync(HASH_KEY)).to.equal('a-value');
+      });
+
+      it('supports CREATE_IF_NOT_BOUND with an existing binding', () => {
+        // Create a binding for hash key
+        const hashBinding = ctx
+          .bind(HASH_KEY)
+          .to('123')
+          .tag('hash');
+        ctx
+          .bind(STORE_KEY)
+          .toClass(givenStoreClass(BindingCreationPolicy.CREATE_IF_NOT_BOUND));
+        const store = ctx.getSync<Store>(STORE_KEY);
+        const binding = store.setter('a-value');
+        expect(binding).to.exactly(hashBinding);
+        expect(ctx.getSync(HASH_KEY)).to.equal('a-value');
+      });
+
+      function givenStoreClass(bindingCreation?: BindingCreationPolicy) {
+        class StoreWithInjectSetterMetadata {
+          constructor(
+            @inject.setter(HASH_KEY, {bindingCreation})
+            public setter: Setter<string>,
+          ) {}
+        }
+        return StoreWithInjectSetterMetadata;
+      }
     });
   });
 

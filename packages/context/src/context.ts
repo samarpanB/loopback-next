@@ -758,13 +758,23 @@ export class Context extends EventEmitter {
   /**
    * Find or create a binding for the given key
    * @param key Binding address
+   * @param policy Binding creation policy
    */
-  findOrCreateBinding(key: BindingAddress) {
-    let binding: Binding<unknown>;
-    if (this.isBound(key)) {
+  findOrCreateBinding<T>(
+    key: BindingAddress<T>,
+    policy?: BindingCreationPolicy,
+  ) {
+    let binding: Binding<T>;
+    if (policy === BindingCreationPolicy.ALWAYS_CREATE) {
+      binding = this.bind(key);
+    } else if (policy === BindingCreationPolicy.NEVER_CREATE) {
       binding = this.getBinding(key);
     } else {
-      binding = this.bind(key);
+      if (this.isBound(key)) {
+        binding = this.getBinding(key);
+      } else {
+        binding = this.bind(key);
+      }
     }
     return binding;
   }
@@ -850,4 +860,24 @@ class ContextSubscription implements Subscription {
   get closed() {
     return this._closed;
   }
+}
+
+/**
+ * Policy to control if a binding should be created for the context
+ */
+export enum BindingCreationPolicy {
+  /**
+   * Always create a binding with the key for the context
+   */
+  ALWAYS_CREATE = 'Always',
+  /**
+   * Never create a binding for the context. If the key is not bound in the
+   * context, throw an error.
+   */
+  NEVER_CREATE = 'Never',
+  /**
+   * Create a binding if the key is not bound in the context. Otherwise, return
+   * the existing binding.
+   */
+  CREATE_IF_NOT_BOUND = 'IfNotBound',
 }

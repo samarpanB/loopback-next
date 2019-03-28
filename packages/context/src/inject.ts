@@ -12,7 +12,7 @@ import {
   ParameterDecoratorFactory,
   PropertyDecoratorFactory,
 } from '@loopback/metadata';
-import {Binding, BindingTag, BindingTemplate} from './binding';
+import {Binding, BindingTag} from './binding';
 import {
   BindingFilter,
   BindingSelector,
@@ -20,7 +20,7 @@ import {
   isBindingAddress,
 } from './binding-filter';
 import {BindingAddress} from './binding-key';
-import {Context} from './context';
+import {BindingCreationPolicy, Context} from './context';
 import {ContextView, createViewGetter} from './context-view';
 import {ResolutionSession} from './resolution-session';
 import {BoundValue, ValueOrPromise} from './value-promise';
@@ -207,23 +207,27 @@ export namespace Getter {
  */
 export interface Setter<T> {
   /**
-   * Set the binding with one or more `BindingTemplate` functions or values.
+   * Set the underlying binding to a const value. Returns the `Binding` object.
    * The usages are:
    *
    * ```ts
    * setterFn('my-value');
-   * setterFn(binding => binding.toClass(MyClass).tag('my-tag'));
-   * setterFn().toClass(MyClass);
+   * setterFn().toClass(MyClass).tag('my-tag');
    * ```
-   * @param templateFnsOrValues Binding template functions or values. Please
-   * note a parameter with function as the value will be treated as a template
-   * function. To set a function as constant value, you need to wrap it inside
-   * a template function, such as:
-   * ```ts
-   * setterFn(binding => binding.to(aFunction))
-   * ```
+   * @param value Optional value. If not provided, the underlying binding won't
+   * be changed and returned as-is.
    */
-  (...templateFnsOrValues: (T | BindingTemplate<T>)[]): Binding<T>;
+  (value?: T): Binding<T>;
+}
+
+/**
+ * Metadata for `@inject.setter`
+ */
+export interface InjectSetterMetadata extends InjectionMetadata {
+  /**
+   * Controls how the underlying binding is resolved/created
+   */
+  bindingCreation?: BindingCreationPolicy;
 }
 
 export namespace inject {
@@ -270,7 +274,7 @@ export namespace inject {
    */
   export const setter = function injectSetter(
     bindingKey: BindingAddress,
-    metadata?: InjectionMetadata,
+    metadata?: InjectionMetadata & InjectSetterMetadata,
   ) {
     metadata = Object.assign({decorator: '@inject.setter'}, metadata);
     return inject(bindingKey, metadata, resolveAsSetter);
@@ -372,24 +376,21 @@ function resolveAsSetter(ctx: Context, injection: Injection) {
       `The type of ${targetName} (${targetType.name}) is not a Setter function`,
     );
   }
-  const bindingSelector = injection.bindingSelector;
-  if (!isBindingAddress(bindingSelector)) {
+  const key = injection.bindingSelector;
+  if (!isBindingAddress(key)) {
     throw new Error(
       `@inject.setter for (${targetType.name}) does not allow BindingFilter`,
     );
   }
   // No resolution session should be propagated into the setter
-  return function setter(
-    ...templateFnsOrValues: (BindingTemplate | unknown)[]
-  ) {
-    const binding: Binding<unknown> = ctx.findOrCreateBinding(bindingSelector);
-    for (const templateFnOrValue of templateFnsOrValues) {
-      if (typeof templateFnOrValue === 'function') {
-        binding.apply(templateFnOrValue as BindingTemplate);
-      } else {
-        binding.to(templateFnOrValue);
-      }
-    }
+  return function setter(value: unknown) {
+    const metadata = (injection.metadata || {}) as InjectSetterMetadata;
+    const bindingCreation = metadata.bindingCreation;
+    const binding: Binding<unknown> = ctx.findOrCreateBinding(
+      key,
+      bindingCreation,
+    );
+    if (arguments.length) binding.to(value);
     return binding;
   };
 }
