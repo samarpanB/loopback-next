@@ -188,9 +188,7 @@ export function inject(
 /**
  * The function injected by `@inject.getter(bindingSelector)`.
  */
-export interface Getter<T> {
-  (): Promise<T>;
-}
+export type Getter<T> = () => Promise<T>;
 
 export namespace Getter {
   /**
@@ -205,10 +203,13 @@ export namespace Getter {
 /**
  * The function injected by `@inject.setter(bindingKey)`.
  */
-export interface Setter<T> {
+export type Setter<T> =
   /**
-   * Set the underlying binding to a const value. Returns the `Binding` object.
-   * The usages are:
+   * Set the underlying binding to a const value. Returns the `Binding` object
+   * so that the binding can be further configured, such as setting it to a
+   * class with `toClass()`.
+   *
+   * For example,
    *
    * ```ts
    * setterFn('my-value');
@@ -217,8 +218,7 @@ export interface Setter<T> {
    * @param value Optional value. If not provided, the underlying binding won't
    * be changed and returned as-is.
    */
-  (value?: T): Binding<T>;
-}
+  (value?: T) => Binding<T>;
 
 /**
  * Metadata for `@inject.setter`
@@ -376,8 +376,8 @@ function resolveAsSetter(ctx: Context, injection: Injection) {
       `The type of ${targetName} (${targetType.name}) is not a Setter function`,
     );
   }
-  const key = injection.bindingSelector;
-  if (!isBindingAddress(key)) {
+  const bindingSelector = injection.bindingSelector;
+  if (!isBindingAddress(bindingSelector)) {
     throw new Error(
       `@inject.setter for (${targetType.name}) does not allow BindingFilter`,
     );
@@ -387,7 +387,7 @@ function resolveAsSetter(ctx: Context, injection: Injection) {
     const metadata = (injection.metadata || {}) as InjectSetterMetadata;
     const bindingCreation = metadata.bindingCreation;
     const binding: Binding<unknown> = ctx.findOrCreateBinding(
-      key,
+      bindingSelector,
       bindingCreation,
     );
     if (arguments.length) binding.to(value);

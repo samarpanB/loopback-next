@@ -6,13 +6,13 @@
 import {expect} from '@loopback/testlab';
 import {
   Binding,
+  BindingCreationPolicy,
   BindingKey,
   BindingScope,
   BindingType,
   Context,
   isPromiseLike,
 } from '../..';
-import {BindingCreationPolicy} from '../../context';
 
 /**
  * Create a subclass of context so that we can access parents and registry

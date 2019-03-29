@@ -769,12 +769,12 @@ export class Context extends EventEmitter {
       binding = this.bind(key);
     } else if (policy === BindingCreationPolicy.NEVER_CREATE) {
       binding = this.getBinding(key);
+    } else if (this.isBound(key)) {
+      // CREATE_IF_NOT_BOUND - the key is bound
+      binding = this.getBinding(key);
     } else {
-      if (this.isBound(key)) {
-        binding = this.getBinding(key);
-      } else {
-        binding = this.bind(key);
-      }
+      // CREATE_IF_NOT_BOUND - the key is not bound
+      binding = this.bind(key);
     }
     return binding;
   }

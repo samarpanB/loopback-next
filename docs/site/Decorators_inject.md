@@ -149,7 +149,7 @@ The `setter` function injected has the following signature:
 /**
  * The function injected by `@inject.setter(bindingKey)`.
  */
-export interface Setter<T> {
+export type Setter<T> =
   /**
    * Set the underlying binding to a const value. Returns the `Binding` object.
    * The usages are:
@@ -157,15 +157,18 @@ export interface Setter<T> {
    * @param value Optional value. If not provided, the underlying binding won't
    * be changed and returned as-is.
    */
-  (value?: T): Binding<T>;
-}
+  (value?: T) => Binding<T>;
 ```
+
+If you simply want to set a constant value for the underlying binding:
 
 ```ts
-const binding = this.greetingSetter('Greetings!');
+this.greetingSetter('Greetings!');
 ```
 
-or
+To set other types of value providers such as `toDynamicValue`or `toClass`, call
+the setter function without any arguments and use the returned `binding` to
+configure with binding APIs.
 
 ```ts
 const binding = this.greetingSetter().toDynamicValue(() => 'Greetings!');

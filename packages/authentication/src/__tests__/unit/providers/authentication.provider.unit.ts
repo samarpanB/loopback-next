@@ -110,8 +110,8 @@ describe('AuthenticateActionProvider', () => {
       strategy.setMockUser(mockUser);
       provider = new AuthenticateActionProvider(
         () => Promise.resolve(strategy),
-        (...u) => {
-          currentUser = u[0] as UserProfile;
+        u => {
+          currentUser = u;
           return new Binding('authentication.currentUser').to(currentUser);
         },
       );
