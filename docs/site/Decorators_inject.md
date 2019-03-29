@@ -157,7 +157,7 @@ export type Setter<T> =
    * @param value Optional value. If not provided, the underlying binding won't
    * be changed and returned as-is.
    */
-  (value?: T) => Binding<T>;
+  (value?: T) => void;
 ```
 
 If you simply want to set a constant value for the underlying binding:
@@ -166,15 +166,36 @@ If you simply want to set a constant value for the underlying binding:
 this.greetingSetter('Greetings!');
 ```
 
-To set other types of value providers such as `toDynamicValue`or `toClass`, call
-the setter function without any arguments and use the returned `binding` to
-configure with binding APIs.
+To set other types of value providers such as `toDynamicValue`or `toClass`, use
+`@inject.binding` instead.
+
+### @inject.binding
+
+`@inject.binding` injects a binding for the given key. It can be used to bind
+various types of value providers to the underlying binding or configure the
+binding. This is an advanced form of `@inject.setter`, which only allows to set
+a constant value (using `Binding.to(value)` behind the scene) to the underlying
+binding.
+
+Syntax: `@inject.binding(bindingKey: string, {bindingCreation?: ...})`.
 
 ```ts
-const binding = this.greetingSetter().toDynamicValue(() => 'Greetings!');
+export class HelloController {
+  constructor(
+    @inject.binding('greeting') private greetingBinding: Binding<string>,
+  ) {}
+
+  @get('/hello')
+  async greet() {
+    // Bind `greeting` to a factory function that reads default greeting
+    // from a file or database
+    this.greetingBinding.toDynamicValue(() => readDefaultGreeting());
+    return await this.greetingBinding.get<string>(this.greetingBinding.key);
+  }
+}
 ```
 
-The `@inject.setter` takes an optional `metadata` object which can contain
+The `@inject.binding` takes an optional `metadata` object which can contain
 `bindingCreation` to control how underlying binding is resolved or created based
 on the following values:
 

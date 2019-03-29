@@ -221,9 +221,9 @@ export type Setter<T> =
   (value?: T) => Binding<T>;
 
 /**
- * Metadata for `@inject.setter`
+ * Metadata for `@inject.binding`
  */
-export interface InjectSetterMetadata extends InjectionMetadata {
+export interface InjectBindingMetadata extends InjectionMetadata {
   /**
    * Controls how the underlying binding is resolved/created
    */
@@ -274,10 +274,18 @@ export namespace inject {
    */
   export const setter = function injectSetter(
     bindingKey: BindingAddress,
-    metadata?: InjectionMetadata & InjectSetterMetadata,
+    metadata?: InjectBindingMetadata,
   ) {
     metadata = Object.assign({decorator: '@inject.setter'}, metadata);
     return inject(bindingKey, metadata, resolveAsSetter);
+  };
+
+  export const binding = function injectBinding(
+    bindingKey: BindingAddress,
+    metadata?: InjectBindingMetadata,
+  ) {
+    metadata = Object.assign({decorator: '@inject.binding'}, metadata);
+    return inject(bindingKey, metadata, resolveAsBinding);
   };
 
   /**
@@ -384,15 +392,41 @@ function resolveAsSetter(ctx: Context, injection: Injection) {
   }
   // No resolution session should be propagated into the setter
   return function setter(value: unknown) {
-    const metadata = (injection.metadata || {}) as InjectSetterMetadata;
-    const bindingCreation = metadata.bindingCreation;
-    const binding: Binding<unknown> = ctx.findOrCreateBinding(
-      bindingSelector,
-      bindingCreation,
-    );
-    if (arguments.length) binding.to(value);
+    const binding = findOrCreateBindingForInjection(ctx, injection);
+    binding.to(value);
     return binding;
   };
+}
+
+function resolveAsBinding(ctx: Context, injection: Injection) {
+  const targetType = inspectTargetType(injection);
+  const targetName = ResolutionSession.describeInjection(injection)!.targetName;
+  if (targetType && targetType !== Binding) {
+    throw new Error(
+      `The type of ${targetName} (${targetType.name}) is not Binding`,
+    );
+  }
+  const bindingSelector = injection.bindingSelector;
+  if (!isBindingAddress(bindingSelector)) {
+    throw new Error(
+      `@inject.binding for (${targetType.name}) does not allow BindingFilter`,
+    );
+  }
+  return findOrCreateBindingForInjection(ctx, injection);
+}
+
+function findOrCreateBindingForInjection(
+  ctx: Context,
+  injection: Injection<unknown>,
+) {
+  const bindingCreation =
+    injection.metadata &&
+    (injection.metadata as InjectBindingMetadata).bindingCreation;
+  const binding: Binding<unknown> = ctx.findOrCreateBinding(
+    injection.bindingSelector as BindingAddress,
+    bindingCreation,
+  );
+  return binding;
 }
 
 /**
