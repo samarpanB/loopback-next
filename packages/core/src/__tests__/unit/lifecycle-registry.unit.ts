@@ -18,7 +18,7 @@ import {
   LifeCycleObserver,
   LifeCycleObserverRegistry,
 } from '../..';
-import {DEFAULT_GROUPS_BY_ORDER} from '../../lifecycle-registry';
+import {DEFAULT_ORDERED_GROUPS} from '../../lifecycle-registry';
 const sleep = promisify(setTimeout);
 
 describe('LifeCycleRegistry', () => {
@@ -40,7 +40,7 @@ describe('LifeCycleRegistry', () => {
   it('starts all registered async observers', async () => {
     givenAsyncObserver('1', 'g1');
     givenAsyncObserver('2', 'g2');
-    registry.setGroupsByOrder(['g1', 'g2']);
+    registry.setOrderedGroups(['g1', 'g2']);
     await registry.start();
     expect(events).to.eql(['1-start', '2-start']);
   });
@@ -55,7 +55,7 @@ describe('LifeCycleRegistry', () => {
   it('stops all registered async observers in reverse order', async () => {
     givenAsyncObserver('1', 'g1');
     givenAsyncObserver('2', 'g2');
-    registry.setGroupsByOrder(['g1', 'g2']);
+    registry.setOrderedGroups(['g1', 'g2']);
     await registry.stop();
     expect(events).to.eql(['2-stop', '1-stop']);
   });
@@ -64,8 +64,8 @@ describe('LifeCycleRegistry', () => {
     givenObserver('1', 'g1');
     givenObserver('2', 'g2');
     givenObserver('3', 'g1');
-    registry.setGroupsByOrder(['g1', 'g2']);
-    const groups = registry.getGroupsByOrder();
+    registry.setOrderedGroups(['g1', 'g2']);
+    const groups = registry.getOrderedGroups();
     expect(groups).to.eql(['g1', 'g2']);
     await registry.start();
     expect(events).to.eql(['1-start', '3-start', '2-start']);
@@ -75,7 +75,7 @@ describe('LifeCycleRegistry', () => {
     givenObserver('1', 'g1');
     givenObserver('2', 'g2');
     givenObserver('3', 'g1');
-    registry.setGroupsByOrder(['g1', 'g2']);
+    registry.setOrderedGroups(['g1', 'g2']);
     await registry.stop();
     expect(events).to.eql(['2-stop', '3-stop', '1-stop']);
   });
@@ -85,7 +85,7 @@ describe('LifeCycleRegistry', () => {
     givenObserver('2', 'g2');
     givenObserver('3', 'g1');
     givenObserver('4', 'g0');
-    const groups = registry.getGroupsByOrder();
+    const groups = registry.getOrderedGroups();
     expect(groups).to.eql(['g0', 'g1', 'g2']);
     await registry.start();
     expect(events).to.eql(['4-start', '1-start', '3-start', '2-start']);
@@ -100,7 +100,7 @@ describe('LifeCycleRegistry', () => {
     givenAsyncObserver('g2-1', 'g2', 20);
     givenAsyncObserver('g2-2', 'g2', 0);
 
-    registry.setGroupsByOrder(['g1', 'g2']);
+    registry.setOrderedGroups(['g1', 'g2']);
     registry.setParallel(true);
     await registry.start();
     expect(events.length).to.equal(4);
@@ -121,7 +121,7 @@ describe('LifeCycleRegistry', () => {
     givenAsyncObserver('g2-1', 'g2', 20);
     givenAsyncObserver('g2-2', 'g2', 0);
 
-    registry.setGroupsByOrder(['g1', 'g2']);
+    registry.setOrderedGroups(['g1', 'g2']);
     registry.setParallel(false);
     await registry.start();
     expect(events.length).to.equal(4);
@@ -141,7 +141,7 @@ describe('LifeCycleRegistry', () => {
    * Create a subclass to expose some protected properties/methods for testing
    */
   class TestObserverRegistry extends LifeCycleObserverRegistry {
-    getGroupsByOrder(): string[] {
+    getOrderedGroups(): string[] {
       return super.getObserverGroupsByOrder().map(g => g.group);
     }
 
@@ -152,7 +152,7 @@ describe('LifeCycleRegistry', () => {
 
   async function givenLifeCycleRegistry() {
     context.bind(CoreBindings.LIFE_CYCLE_OBSERVER_OPTIONS).to({
-      groupsByOrder: DEFAULT_GROUPS_BY_ORDER,
+      orderedGroups: DEFAULT_ORDERED_GROUPS,
       parallel: false,
     });
     context

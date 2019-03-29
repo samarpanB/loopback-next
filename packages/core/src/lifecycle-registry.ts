@@ -30,14 +30,14 @@ export type LifeCycleObserverOptions = {
    * notified before those in `server` group during `start`. Please note that
    * observers are notified in the reverse order during `stop`.
    */
-  groupsByOrder: string[];
+  orderedGroups: string[];
   /**
    * Notify observers of the same group in parallel, default to `true`
    */
   parallel?: boolean;
 };
 
-export const DEFAULT_GROUPS_BY_ORDER = ['server'];
+export const DEFAULT_ORDERED_GROUPS = ['server'];
 
 /**
  * A context-based registry for life cycle observers
@@ -49,12 +49,12 @@ export class LifeCycleObserverRegistry implements LifeCycleObserver {
     @inject(CoreBindings.LIFE_CYCLE_OBSERVER_OPTIONS, {optional: true})
     protected readonly options: LifeCycleObserverOptions = {
       parallel: true,
-      groupsByOrder: DEFAULT_GROUPS_BY_ORDER,
+      orderedGroups: DEFAULT_ORDERED_GROUPS,
     },
   ) {}
 
-  setGroupsByOrder(groups: string[]) {
-    this.options.groupsByOrder = groups;
+  setOrderedGroups(groups: string[]) {
+    this.options.orderedGroups = groups;
   }
 
   /**
@@ -86,7 +86,7 @@ export class LifeCycleObserverRegistry implements LifeCycleObserver {
     let group = binding.tagMap[CoreTags.LIFE_CYCLE_OBSERVER_GROUP];
     if (!group) {
       // Fall back to a tag that matches one of the groups
-      group = this.options.groupsByOrder.find(g => binding.tagMap[g] === g);
+      group = this.options.orderedGroups.find(g => binding.tagMap[g] === g);
     }
     group = group || '';
     debug(
@@ -127,8 +127,8 @@ export class LifeCycleObserverRegistry implements LifeCycleObserver {
     }
     // Sort the groups
     return groups.sort((g1, g2) => {
-      const i1 = this.options.groupsByOrder.indexOf(g1.group);
-      const i2 = this.options.groupsByOrder.indexOf(g2.group);
+      const i1 = this.options.orderedGroups.indexOf(g1.group);
+      const i2 = this.options.orderedGroups.indexOf(g2.group);
       if (i1 !== -1 || i2 !== -1) {
         // Honor the group order
         return i1 - i2;

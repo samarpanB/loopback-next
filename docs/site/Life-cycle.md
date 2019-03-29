@@ -25,7 +25,8 @@ such artifacts are:
 
 - Components
 
-  - A component can register life cycle observers
+  - A component itself can be a life cycle observer and it can also contribute
+    life cycle observers
 
 - DataSources
 
@@ -72,7 +73,11 @@ observers.
 Life cycle observers can be registered via a component too:
 
 ```ts
-export class MyComponentWithObservers {
+export class MyComponentWithObservers implements Component {
+  /**
+   * Populate `lifeCycleObservers` per `Component` interface to register life
+   * cycle observers
+   */
   lifeCycleObservers = [XObserver, YObserver];
 }
 ```
@@ -142,9 +147,9 @@ export class MyObserver {
 app.add(createBindingFromClass(MyObserver));
 ```
 
-The order of observers is controlled by a `groupsByOrder` property of
+The order of observers is controlled by a `orderedGroups` property of
 `LifeCycleObserverRegistry`, which receives its options including the
-`groupsByOrder` from `CoreBindings.LIFE_CYCLE_OBSERVER_OPTIONS`.
+`orderedGroups` from `CoreBindings.LIFE_CYCLE_OBSERVER_OPTIONS`.
 
 ```ts
 export type LifeCycleObserverOptions = {
@@ -154,7 +159,7 @@ export type LifeCycleObserverOptions = {
    * notified before those in `server` group during `start`. Please note that
    * observers are notified in the reverse order during `stop`.
    */
-  groupsByOrder: string[];
+  orderedGroups: string[];
   /**
    * Notify observers of the same group in parallel, default to `true`
    */
@@ -162,27 +167,27 @@ export type LifeCycleObserverOptions = {
 };
 ```
 
-Thus the initial `groupsByOrder` can be set as follows:
+Thus the initial `orderedGroups` can be set as follows:
 
 ```ts
 app
   .bind(CoreBindings.LIFE_CYCLE_OBSERVER_OPTIONS)
-  .to({groupsByOrder: ['g1', 'g2', 'server']});
+  .to({orderedGroups: ['g1', 'g2', 'server']});
 ```
 
 Or:
 
 ```ts
 const registry = await app.get(CoreBindings.LIFE_CYCLE_OBSERVER_REGISTRY);
-registry.setGroupsByOrder(['g1', 'g2', 'server']);
+registry.setOrderedGroups(['g1', 'g2', 'server']);
 ```
 
-Observers are sorted using `groupsByOrder` as the relative order. If an observer
-is tagged with a group that is not defined in `groupsByOrder`, it will come
-before any groups included in `groupsByOrder`. Such custom groups are also
+Observers are sorted using `orderedGroups` as the relative order. If an observer
+is tagged with a group that is not defined in `orderedGroups`, it will come
+before any groups included in `orderedGroups`. Such custom groups are also
 sorted by their names alphabetically.
 
-In the example below, `groupsByOrder` is set to
+In the example below, `orderedGroups` is set to
 `['setup-servers', 'publish-services']`. Given the following observers:
 
 - 'my-observer-1' ('setup-servers')
@@ -196,8 +201,8 @@ The sorted observer groups will be:
 {
   '1-custom-group': ['my-observer-3'], // by alphabetical order
   '2-custom-group': ['my-observer-4'], // by alphabetical order
-  'setup-servers': ['my-observer-1'], // by groupsByOrder
-  'publish-services': ['my-observer-2'], // groupsByOrder
+  'setup-servers': ['my-observer-1'], // by orderedGroups
+  'publish-services': ['my-observer-2'], // orderedGroups
 }
 ```
 
