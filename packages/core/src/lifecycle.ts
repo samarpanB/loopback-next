@@ -3,8 +3,14 @@
 // This file is licensed under the MIT License.
 // License text available at https://opensource.org/licenses/MIT
 
-import {Binding, Constructor, ValueOrPromise} from '@loopback/context';
-import {CoreTags} from './keys';
+import {
+  bind,
+  Binding,
+  BindingScope,
+  Constructor,
+  ValueOrPromise,
+} from '@loopback/context';
+import {CoreBindings, CoreTags} from './keys';
 
 /**
  * Observers to handle life cycle start/stop events
@@ -47,7 +53,9 @@ export function isLifeCycleObserverClass(
  * @param binding Binding
  */
 export function asLifeCycleObserver<T = unknown>(binding: Binding<T>) {
-  return binding.tag(CoreTags.LIFE_CYCLE_OBSERVER);
+  return binding
+    .tag(CoreTags.LIFE_CYCLE_OBSERVER)
+    .tag({namespace: CoreBindings.LIFE_CYCLE_OBSERVERS});
 }
 
 /**
@@ -56,4 +64,18 @@ export function asLifeCycleObserver<T = unknown>(binding: Binding<T>) {
  */
 export function lifeCycleObserverFilter(binding: Binding<unknown>): boolean {
   return binding.tagMap[CoreTags.LIFE_CYCLE_OBSERVER] != null;
+}
+
+/**
+ * Sugar decorator to mark a class as life cycle observer
+ * @param group Optional observer group name
+ * @param scope Optional binding scope
+ */
+export function lifeCycleObserver(group = '', scope?: BindingScope) {
+  return bind(asLifeCycleObserver, {
+    tags: {
+      [CoreTags.LIFE_CYCLE_OBSERVER_GROUP]: group,
+    },
+    scope,
+  });
 }

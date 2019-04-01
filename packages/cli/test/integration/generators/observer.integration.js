@@ -74,14 +74,12 @@ function verifyGeneratedScript(group = '') {
     'my-observer.observer.ts',
   );
   assert.file(expectedFile);
+  assert.fileContent(expectedFile, 'lifeCycleObserver, // The decorator');
   assert.fileContent(
     expectedFile,
     /export class MyObserverObserver implements LifeCycleObserver {/,
   );
-  assert.fileContent(
-    expectedFile,
-    `@bind({tags: {[CoreTags.LIFE_CYCLE_OBSERVER_GROUP]: '${group}'}})`,
-  );
+  assert.fileContent(expectedFile, `@lifeCycleObserver('${group}')`);
   assert.fileContent(expectedFile, /async start\(\): Promise\<void\> {/);
   assert.fileContent(expectedFile, /async stop\(\): Promise\<void\> {/);
   assert.file(INDEX_FILE);

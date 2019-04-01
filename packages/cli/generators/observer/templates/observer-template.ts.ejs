@@ -1,15 +1,15 @@
-import {bind} from '@loopback/context';
 import {
   /* inject, Application, CoreBindings, */
+  lifeCycleObserver, // The decorator
   CoreTags,
-  LifeCycleObserver,
+  LifeCycleObserver, // The interface
 } from '@loopback/core';
 
 /**
  * This class will be bound to the application as a `LifeCycleObserver` during
  * `boot`
  */
-@bind({tags: {[CoreTags.LIFE_CYCLE_OBSERVER_GROUP]: '<%= group %>'}})
+@lifeCycleObserver('<%= group %>')
 export class <%= className %> implements LifeCycleObserver {
   /*
   constructor(

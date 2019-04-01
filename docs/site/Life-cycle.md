@@ -147,6 +147,20 @@ export class MyObserver {
 app.add(createBindingFromClass(MyObserver));
 ```
 
+Or even simpler with `@lifeCycleObserver`:
+
+```ts
+import {createBindingFromClass} from '@loopback/context';
+import {lifeCycleObserver} from '@loopback/core';
+
+@lifeCycleObserver('g1')
+export class MyObserver {
+  // ...
+}
+
+app.add(createBindingFromClass(MyObserver));
+```
+
 The order of observers is controlled by a `orderedGroups` property of
 `LifeCycleObserverRegistry`, which receives its options including the
 `orderedGroups` from `CoreBindings.LIFE_CYCLE_OBSERVER_OPTIONS`.

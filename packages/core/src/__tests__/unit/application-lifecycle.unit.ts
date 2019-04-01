@@ -3,7 +3,13 @@
 // This file is licensed under the MIT License.
 // License text available at https://opensource.org/licenses/MIT
 
-import {BindingScope, Constructor, Context} from '@loopback/context';
+import {
+  bind,
+  BindingScope,
+  Constructor,
+  Context,
+  createBindingFromClass,
+} from '@loopback/context';
 import {expect} from '@loopback/testlab';
 import {
   Application,
@@ -13,6 +19,7 @@ import {
   LifeCycleObserver,
   Server,
 } from '../..';
+import {lifeCycleObserver} from '../../lifecycle';
 
 describe('Application life cycle', () => {
   describe('start', () => {
@@ -62,15 +69,21 @@ describe('Application life cycle', () => {
 
     it('starts/stops all observers from the component', async () => {
       const app = new Application();
-      app.component(FakeComponentWithAnObserver);
+      app.component(FakeComponentWithObservers);
       const observer = await app.get<MyObserver>(
         'lifeCycleObservers.MyObserver',
       );
+      const observerWithDecorator = await app.get<MyObserverWithDecorator>(
+        'lifeCycleObservers.MyObserverWithDecorator',
+      );
       expect(observer.status).to.equal('not-initialized');
+      expect(observerWithDecorator.status).to.equal('not-initialized');
       await app.start();
       expect(observer.status).to.equal('started');
+      expect(observerWithDecorator.status).to.equal('started');
       await app.stop();
       expect(observer.status).to.equal('stopped');
+      expect(observerWithDecorator.status).to.equal('stopped');
     });
 
     it('starts/stops all registered life cycle observers', async () => {
@@ -80,6 +93,38 @@ describe('Application life cycle', () => {
       const observer = await app.get<MyObserver>(
         'lifeCycleObservers.my-observer',
       );
+      expect(observer.status).to.equal('not-initialized');
+      await app.start();
+      expect(observer.status).to.equal('started');
+      await app.stop();
+      expect(observer.status).to.equal('stopped');
+    });
+
+    it('honors @bind', async () => {
+      const app = new Application();
+      const binding = createBindingFromClass(MyObserverWithBind);
+      app.add(binding);
+      expect(binding.tagMap[CoreTags.LIFE_CYCLE_OBSERVER_GROUP]).to.eql(
+        'my-group',
+      );
+
+      const observer = await app.get<MyObserverWithBind>(binding.key);
+      expect(observer.status).to.equal('not-initialized');
+      await app.start();
+      expect(observer.status).to.equal('started');
+      await app.stop();
+      expect(observer.status).to.equal('stopped');
+    });
+
+    it('honors @lifeCycleObserver', async () => {
+      const app = new Application();
+      const binding = createBindingFromClass(MyObserverWithDecorator);
+      app.add(binding);
+      expect(binding.tagMap[CoreTags.LIFE_CYCLE_OBSERVER_GROUP]).to.eql(
+        'my-group',
+      );
+
+      const observer = await app.get<MyObserverWithDecorator>(binding.key);
       expect(observer.status).to.equal('not-initialized');
       await app.start();
       expect(observer.status).to.equal('started');
@@ -153,6 +198,37 @@ class MyObserver implements LifeCycleObserver {
   }
 }
 
-class FakeComponentWithAnObserver implements Component {
-  lifeCycleObservers = [MyObserver];
+@bind({
+  tags: {
+    [CoreTags.LIFE_CYCLE_OBSERVER]: CoreTags.LIFE_CYCLE_OBSERVER,
+    [CoreTags.LIFE_CYCLE_OBSERVER_GROUP]: 'my-group',
+    namespace: CoreBindings.LIFE_CYCLE_OBSERVERS,
+  },
+  scope: BindingScope.SINGLETON,
+})
+class MyObserverWithBind implements LifeCycleObserver {
+  status = 'not-initialized';
+
+  start() {
+    this.status = 'started';
+  }
+  stop() {
+    this.status = 'stopped';
+  }
+}
+
+@lifeCycleObserver('my-group', BindingScope.SINGLETON)
+class MyObserverWithDecorator implements LifeCycleObserver {
+  status = 'not-initialized';
+
+  start() {
+    this.status = 'started';
+  }
+  stop() {
+    this.status = 'stopped';
+  }
+}
+
+class FakeComponentWithObservers implements Component {
+  lifeCycleObservers = [MyObserver, MyObserverWithDecorator];
 }

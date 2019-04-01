@@ -28,7 +28,7 @@ describe('lifecycle script booter integration tests', () => {
   it('boots life cycle observers when app.boot() is called', async () => {
     const expectedBinding = {
       key: `${OBSERVER_PREFIX}.MyLifeCycleObserver`,
-      tags: [ContextTags.TYPE, OBSERVER_TAG],
+      tags: [ContextTags.TYPE, OBSERVER_TAG, 'namespace'],
       scope: BindingScope.SINGLETON,
     };
 

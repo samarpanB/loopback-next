@@ -47,18 +47,18 @@ Once all the prompts have been answered, the CLI will do the following:
 The generated class looks like:
 
 ```ts
-import {bind} from '@loopback/context';
 import {
-  /* inject, Application, */
-  CoreBindings,
-  LifeCycleObserver,
+  /* inject, Application, CoreBindings, */
+  lifeCycleObserver, // The decorator
+  CoreTags,
+  LifeCycleObserver, // The interface
 } from '@loopback/core';
 
 /**
  * This class will be bound to the application as a `LifeCycleObserver` during
  * `boot`
  */
-@bind({tags: {[CoreBindings.LIFE_CYCLE_OBSERVER_GROUP]: ''}})
+@lifeCycleObserver('observer-group-name')
 export class HelloObserver implements LifeCycleObserver {
   /*
   constructor(
