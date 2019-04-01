@@ -186,7 +186,9 @@ export function inject(
 }
 
 /**
- * The function injected by `@inject.getter(bindingSelector)`.
+ * The function injected by `@inject.getter(bindingSelector)`. It can be used
+ * to fetch bound value(s) from the underlying binding(s). The return value will
+ * be an array if the `bindingSelector` is a `BindingFilter` function.
  */
 export type Getter<T> = () => Promise<T>;
 
@@ -201,24 +203,21 @@ export namespace Getter {
 }
 
 /**
- * The function injected by `@inject.setter(bindingKey)`.
+ * The function injected by `@inject.setter(bindingKey)`. It sets the underlying
+ * binding to a const value. Returns the `Binding` object so that the binding
+ * can be further configured, such as setting it to a class with `toClass()`.
+ *
+ * For example,
+ *
+ * ```ts
+ * setterFn('my-value');
+ * setterFn().toClass(MyClass).tag('my-tag');
+ * ```
+ * @param value Optional value. If not provided, the underlying binding won't
+ * be changed and returned as-is.
+ * @returns The underlying binding object.
  */
-export type Setter<T> =
-  /**
-   * Set the underlying binding to a const value. Returns the `Binding` object
-   * so that the binding can be further configured, such as setting it to a
-   * class with `toClass()`.
-   *
-   * For example,
-   *
-   * ```ts
-   * setterFn('my-value');
-   * setterFn().toClass(MyClass).tag('my-tag');
-   * ```
-   * @param value Optional value. If not provided, the underlying binding won't
-   * be changed and returned as-is.
-   */
-  (value?: T) => Binding<T>;
+export type Setter<T> = (value?: T) => Binding<T>;
 
 /**
  * Metadata for `@inject.binding`
@@ -280,6 +279,31 @@ export namespace inject {
     return inject(bindingKey, metadata, resolveAsSetter);
   };
 
+  /**
+   * Inject the binding object for the given key. This is useful if a binding
+   * needs to be set up beyond just a constant value allowed by
+   * `@inject.setter`. The injected binding is found or created based on the
+   * `metadata.bindingCreation` option. See `BindingCreationPolicy` for more
+   * details.
+   *
+   * For example:
+   *
+   * ```ts
+   * class MyAuthAction {
+   *   @inject.binding('current-user', {
+   *     bindingCreation: BindingCreationPolicy.ALWAYS_CREATE,
+   *   })
+   *   private userBinding: Binding<UserProfile>;
+   *
+   *   async authenticate() {
+   *     this.userBinding.toDynamicValue(() => {...});
+   *   }
+   * }
+   * ```
+   *
+   * @param bindingKey Binding key
+   * @param metadata Metadata for the injection
+   */
   export const binding = function injectBinding(
     bindingKey: BindingAddress,
     metadata?: InjectBindingMetadata,
@@ -291,7 +315,7 @@ export namespace inject {
   /**
    * Inject an array of values by a tag pattern string or regexp
    *
-   * @example
+   * For example,
    * ```ts
    * class AuthenticationManager {
    *   constructor(

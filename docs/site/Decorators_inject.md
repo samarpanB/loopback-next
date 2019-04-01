@@ -128,6 +128,18 @@ class MyControllerWithGetter {
 
 Syntax: `@inject.setter(bindingKey: string, {bindingCreation?: ...})`.
 
+The `setter` function injected has the following signature:
+
+```ts
+export type Setter<T> = (value?: T) => Binding<T>;
+```
+
+The binding is controlled by `bindingCreation` option. See
+[@inject.binding](#injectbinding) for possible settings.
+
+The following example shows the usage of `@inject.setter` and the injected
+setter function.
+
 ```ts
 export class HelloController {
   constructor(
@@ -143,24 +155,8 @@ export class HelloController {
 }
 ```
 
-The `setter` function injected has the following signature:
-
-```ts
-/**
- * The function injected by `@inject.setter(bindingKey)`.
- */
-export type Setter<T> =
-  /**
-   * Set the underlying binding to a const value. Returns the `Binding` object.
-   * The usages are:
-   *
-   * @param value Optional value. If not provided, the underlying binding won't
-   * be changed and returned as-is.
-   */
-  (value?: T) => void;
-```
-
-If you simply want to set a constant value for the underlying binding:
+Please note the setter function simply binds a constant value to the underlying
+binding:
 
 ```ts
 this.greetingSetter('Greetings!');
